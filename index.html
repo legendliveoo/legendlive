@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LEGENDLIVE — Elite BGMI Creator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Share+Tech+Mono&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ---- CORE SYSTEM & CURSOR ---- */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:#050508;
+  color:#e5e5e5;
+  font-family:'Barlow',sans-serif;
+  overflow-x:hidden;
+  cursor: crosshair;
+}
+::selection{background:#eab308;color:#000}
+.font-teko{font-family:'Teko',sans-serif}
+.font-mono{font-family:'Share Tech Mono',monospace}
+.hidden{display:none!important}
+
+/* ---- CRT SCANLINE OVERLAY ---- */
+.scanlines {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 4px, 3px 100%;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* Tactical grid bg */
+.bg-tactical{
+  background-image:linear-gradient(rgba(234,179,8,.05) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(234,179,8,.05) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+
+/* Hazard tape */
+.hazard-tape{
+  background:repeating-linear-gradient(45deg,#eab308,#eab308 10px,#18181b 10px,#18181b 20px);
+}
+
+/* Tactical border corners */
+.border-tactical{
+  position:relative;border:1px solid rgba(255,255,255,.1);
+  background:rgba(10,10,12,.85);backdrop-filter:blur(10px);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.border-tactical:hover {
+  border-color: rgba(234, 179, 8, 0.4);
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.1);
+}
+.border-tactical::before,.border-tactical::after{content:'';position:absolute;width:15px;height:15px;pointer-events:none;transition: border-color 0.3s;}
+.border-tactical::before{top:-1px;left:-1px;border-top:2px solid #eab308;border-left:2px solid #eab308}
+.border-tactical::after{bottom:-1px;right:-1px;border-bottom:2px solid #eab308;border-right:2px solid #eab308}
+.border-tactical:hover::before, .border-tactical:hover::after { border-color: #fff; }
+
+/* Floating icons */
+@keyframes float-tactical{
+  0%{transform:translateY(110vh) scale(.8) rotate(0deg);opacity:0}
+  10%{opacity:.2}90%{opacity:.2}
+  100%{transform:translateY(-20vh) scale(1.2) rotate(350deg);opacity:0}
+}
+.floating-icon{
+  position:absolute;font-size:2.5rem;
+  filter:drop-shadow(0 0 8px rgba(234,179,8,.3));
+  animation:float-tactical linear infinite;z-index:1;
+}
+
+/* Glitch */
+.glitch{position:relative}
+.glitch::before,.glitch::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%;opacity:.8}
+.glitch::before{left:2px;text-shadow:-2px 0 red;animation:glitch-a 2s infinite linear alternate-reverse}
+.glitch::after{left:-2px;text-shadow:-2px 0 blue;animation:glitch-b 3s infinite linear alternate-reverse}
+@keyframes glitch-a{0%{clip-path:inset(20% 0 80% 0)}20%{clip-path:inset(60% 0 10% 0)}40%{clip-path:inset(40% 0 50% 0)}60%{clip-path:inset(80% 0 5% 0)}80%{clip-path:inset(10% 0 70% 0)}100%{clip-path:inset(30% 0 20% 0)}}
+@keyframes glitch-b{0%{clip-path:inset(10% 0 60% 0)}20%{clip-path:inset(30% 0 20% 0)}40%{clip-path:inset(70% 0 10% 0)}60%{clip-path:inset(20% 0 50% 0)}80%{clip-path:inset(50% 0 30% 0)}100%{clip-path:inset(5% 0 80% 0)}}
+
+/* Spin & Pulse */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spin-slow{to{transform:rotate(360deg)}}
+.spin{animation:spin .8s linear infinite}
+.spin-slow{animation:spin-slow 10s linear infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.pulse{animation:pulse 1.5s ease-in-out infinite}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .25s ease}
+
+/* HUD Control Table Styles */
+.hud-table { width: 100%; border-collapse: collapse; font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; }
+.hud-table tr { border-bottom: 1px solid #1f2937; transition: background .2s, transform 0.2s; }
+.hud-table tr:hover { background: rgba(234, 179, 8, .1); transform: scale(1.01); }
+.hud-table td { padding: 12px 10px; }
+.hud-control { color: #fff; font-weight: 600; text-shadow: 0 0 5px rgba(255,255,255,0.2); }
+.hud-control span { color: #6b7280; font-size: 0.75rem; font-weight: 400; margin-left: 6px; }
+.hud-zone { text-align: right; }
+.hud-zone-tag { display: inline-block; border: 1px solid #eab308; color: #eab308; padding: 3px 10px; border-radius: 999px; font-size: 0.7rem; letter-spacing: 0.1em; background: rgba(234, 179, 8, 0.1); box-shadow: 0 0 8px rgba(234, 179, 8, 0.2); }
+
+/* Sensitivity Progress Bars */
+.sens-row { margin-bottom: 0.8rem; }
+.sens-header { display: flex; justify-content: space-between; font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; margin-bottom: 0.25rem; color: #d1d5db; }
+.sens-val { color: #eab308; font-weight: 700; text-shadow: 0 0 5px rgba(234,179,8,0.5); }
+.sens-bar-bg { width: 100%; height: 5px; background: #1f2937; border-radius: 999px; overflow: hidden; }
+.sens-bar-fill { height: 100%; background: linear-gradient(90deg, #ca8a04, #eab308); border-radius: 999px; box-shadow: 0 0 10px rgba(234,179,8,0.6); }
+
+/* Buttons with Neon Glow */
+.btn-primary, .btn-secondary, .btn-yt { cursor: crosshair; }
+.btn-primary:hover, .btn-yt:hover {
+  background: #ef4444;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), 0 0 40px rgba(239, 68, 68, 0.2);
+  transform: translateY(-2px);
+}
+.btn-secondary:hover {
+  background: #eab308; color: #000;
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.6);
+  transform: translateY(-2px);
+}
+
+/* ======================== */
+/* WEBSITE MODE             */
+/* ======================== */
+#website{display:block}
+#dashboard{display:none}
+
+/* Navbar */
+.navbar{
+  position:fixed;top:0;width:100%;z-index:999;
+  background:rgba(5,5,8,.9);backdrop-filter:blur(12px);
+  border-bottom:2px solid #eab308;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.8);
+}
+.navbar-inner{
+  max-width:1280px;margin:0 auto;padding:0 1.5rem;
+  height:64px;display:flex;align-items:center;justify-content:space-between;gap:1rem;
+}
+.nav-logo{font-family:'Teko',sans-serif;font-size:1.8rem;font-weight:700;letter-spacing:.15em;color:#fff;display:flex;align-items:center;gap:.4rem;text-decoration:none; text-shadow: 0 0 10px rgba(234,179,8,0.5);}
+.nav-logo .accent{color:#eab308}
+.nav-links{display:none}
+@media(min-width:768px){.nav-links{display:flex;align-items:center;gap:2rem;font-family:'Share Tech Mono',monospace;font-size:.8rem;letter-spacing:.15em;text-transform:uppercase;color:#9ca3af}}
+.nav-links a{text-decoration:none;color:inherit;transition:color .2s, text-shadow .2s;}
+.nav-links a:hover{color:#eab308; text-shadow: 0 0 8px #eab308;}
+.nav-socials{display:flex;align-items:center;gap:.6rem}
+.social-icon{
+  color:#9ca3af;transition:all .2s;
+  background:#111;padding:.45rem;border-radius:4px;border:1px solid #222;
+  display:flex;align-items:center;justify-content:center;text-decoration:none;
+  cursor: crosshair;
+}
+.social-icon.yt:hover{color:#ef4444;border-color:#ef4444;box-shadow:0 0 15px rgba(239,68,68,.6); transform: scale(1.1);}
+.social-icon.ig:hover{color:#ec4899;border-color:#ec4899;box-shadow:0 0 15px rgba(236,72,153,.6); transform: scale(1.1);}
+.hazard-sub{height:4px;width:100%;opacity:.5}
+
+/* Admin toggle */
+#admin-btn{
+  position:fixed;top:1rem;right:1rem;z-index:1000;
+  display:flex;align-items:center;gap:.4rem;
+  background:#eab308;color:#000;padding:.4rem .9rem;
+  font-family:'Share Tech Mono',monospace;font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:.75rem;
+  border:1px solid #fde047;box-shadow:0 0 15px rgba(234,179,8,.6);cursor:crosshair;border-radius:0;transition:all .2s;
+}
+#admin-btn:hover{background:#fff; box-shadow:0 0 25px rgba(255,255,255,.8); transform: scale(1.05);}
+
+/* HERO */
+.hero{
+  position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding-top:80px;overflow:hidden;background:#050508;
+}
+.hero-bg{
+  position:absolute;inset:0;z-index:0;opacity:.4;
+  background:url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&q=80') center/cover no-repeat;
+  filter: grayscale(80%) contrast(120%);
+}
+.hero-overlay{position:absolute;inset:0;z-index:0;background:linear-gradient(to bottom,rgba(5,5,8,.9),rgba(5,5,8,.6),#050508)}
+.hero-content{position:relative;z-index:10;text-align:center;padding:0 1rem;max-width:1200px;margin:0 auto;display:flex;flex-direction:column;align-items:center}
+.hero-badge{font-family:'Share Tech Mono',monospace;color:#eab308;font-size:.75rem;letter-spacing:.3em;border:1px solid rgba(234,179,8,.5);padding:.25rem 1rem;background:rgba(234,179,8,.1);backdrop-filter:blur(4px);margin-bottom:1.25rem; box-shadow: 0 0 10px rgba(234,179,8,0.2);}
+.hero-title{font-family:'Teko',sans-serif;font-size:clamp(3.5rem,12vw,7.5rem);font-weight:700;letter-spacing:.08em;color:#fff;line-height:1;margin-bottom:.5rem;text-shadow:0 0 30px rgba(234,179,8,.4)}
+.hero-sub{font-family:'Teko',sans-serif;font-size:clamp(1.2rem,4vw,2.5rem);color:#d1d5db;letter-spacing:.2em;text-transform:uppercase;margin-bottom:2rem;text-shadow:0 0 10px rgba(0,0,0,.8)}
+.hero-sub .accent{color:#eab308; text-shadow: 0 0 15px rgba(234,179,8,0.6);}
+.hero-desc{
+  color:#9ca3af;max-width:680px;font-family:'Share Tech Mono',monospace;line-height:1.7;font-size:.9rem;
+  text-shadow:0 2px 4px rgba(0,0,0,.8);background:rgba(0,0,0,.6);padding:1.25rem;
+  border-radius:4px;border:1px solid rgba(234,179,8,.2);backdrop-filter:blur(8px);margin-bottom:2.5rem;
+}
+.hero-btns{display:flex;flex-direction:column;gap:1rem;align-items:center}
+@media(min-width:480px){.hero-btns{flex-direction:row;justify-content:center}}
+.btn-primary{
+  padding:.85rem 2rem;font-family:'Share Tech Mono',monospace;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
+  text-decoration:none;display:inline-flex;align-items:center;gap:.5rem;font-size:.85rem;
+  background:#dc2626;color:#fff;transition:all .2s;border: 1px solid #ef4444;
+}
+.btn-secondary{
+  padding:.85rem 2rem;font-family:'Share Tech Mono',monospace;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
+  text-decoration:none;display:inline-flex;align-items:center;gap:.5rem;font-size:.85rem;
+  background:rgba(0,0,0,.5);backdrop-filter:blur(4px);border:1px solid #eab308;color:#eab308;transition:all .2s;
+}
+
+/* INTEL SECTION */
+.section-header{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:4rem}
+.section-line{height:32px;width:2px;background:#eab308;margin-bottom:1rem; box-shadow: 0 0 10px #eab308;}
+.section-line.red{background:#dc2626; box-shadow: 0 0 10px #dc2626;}
+.section-title-lg{font-family:'Teko',sans-serif;font-size:clamp(2rem,5vw,3.5rem);font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#fff; text-shadow: 0 0 15px rgba(255,255,255,0.1);}
+.section-title-lg .accent{color:#eab308}
+.section-title-lg .accent-red{color:#dc2626}
+.section-sub{font-family:'Share Tech Mono',monospace;color:#6b7280;letter-spacing:.2em;text-transform:uppercase;font-size:.8rem;margin-top:.4rem}
+.intel-section{padding:6rem 1.5rem;border-top:1px solid rgba(255,255,255,0.05);background:#050508;position:relative}
+.intel-grid{display:grid;gap:3rem;max-width:1200px;margin:0 auto;position:relative;z-index:10}
+@media(min-width:768px){.intel-grid{grid-template-columns:1fr 1fr;align-items:flex-start}}
+.combat-profile-card{padding:2rem;position:relative}
+.access-badge{position:absolute;top:0;right:0;background:#eab308;color:#000;font-family:'Share Tech Mono',monospace;font-size:.7rem;font-weight:700;padding:.2rem .75rem;text-transform:uppercase;letter-spacing:.1em; box-shadow: 0 0 10px rgba(234,179,8,0.5);}
+.profile-title{font-family:'Teko',sans-serif;font-size:2.5rem;color:#fff;letter-spacing:.2em;margin-bottom:1rem; text-shadow: 0 0 10px rgba(255,255,255,0.2);}
+.profile-desc{color:#9ca3af;font-family:'Share Tech Mono',monospace;font-size:.8rem;line-height:1.7;border-left:2px solid rgba(234,179,8,.5);padding-left:1rem;margin-bottom:1.5rem}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.stat-box{background:#0a0a0c;padding:1rem;border:1px solid #1f2937; transition: border-color 0.2s;}
+.stat-box:hover{border-color: #eab308; box-shadow: inset 0 0 15px rgba(234,179,8,0.1);}
+.stat-label{color:#eab308;font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;margin-bottom:.25rem}
+.stat-value{font-family:'Teko',sans-serif;font-size:1.8rem;color:#fff;letter-spacing:.1em; text-shadow: 0 0 5px rgba(255,255,255,0.3);}
+.avatar-ring{
+  width:256px;height:256px;border:2px solid #eab308;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;position:relative;
+  background:#0a0a0c;box-shadow:0 0 50px rgba(234,179,8,.2), inset 0 0 30px rgba(234,179,8,0.1);margin:0 auto;
+}
+.avatar-ring-border{position:absolute;inset:-10px;border-radius:50%;border:1px dashed rgba(234,179,8,0.5)}
+.avatar-text{font-family:'Teko',sans-serif;font-size:4.5rem;font-weight:700;color:#eab308;text-shadow:0 0 20px rgba(234,179,8,.8)}
+
+/* HUD Layout Section (Blended) */
+.hud-image-wrapper {
+  border: 1px solid #374151; 
+  border-radius: 4px; 
+  overflow: hidden; 
+  position: relative; 
+  background: #000;
+  margin-bottom: 1rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+}
+.hud-image-wrapper img {
+  width: 100%; 
+  display: block; 
+  opacity: 0.9; 
+  mix-blend-mode: screen;
+  filter: contrast(1.3) sepia(100%) hue-rotate(10deg) saturate(300%) brightness(0.8);
+}
+.hud-image-wrapper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(0,0,0,0) 50%, rgba(234, 179, 8, 0.1) 100%);
+  pointer-events: none;
+}
+
+/* HUD & SENSITIVITY Section */
+.intel-section#settings {background:#020202; border-top:1px solid rgba(234,179,8,0.2);}
+.intel-section#settings .bg-tactical {position:absolute;inset:0;z-index:0;opacity:.1}
+
+/* YouTube section */
+.yt-section{padding:6rem 1.5rem;border-top:1px solid rgba(220,38,38,.2);background:#050508;position:relative}
+.yt-bg{position:absolute;inset:0;z-index:0;opacity:.2;background:url('https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1200&q=80') center/cover fixed; filter: grayscale(100%);}
+.yt-overlay{position:absolute;inset:0;z-index:0;background:linear-gradient(to bottom,#050508,rgba(10,10,12,.8),#050508)}
+.yt-card{border-tactical;padding:2.5rem;text-align:center;max-width:768px;margin:0 auto;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);box-shadow:0 20px 60px rgba(220,38,38,.1);position:relative; border-color: rgba(220,38,38,0.3);}
+.yt-card::before{border-color:#dc2626;} .yt-card::after{border-color:#dc2626;}
+.yt-icon{color:#dc2626;display:block;margin:0 auto 1.5rem;filter:drop-shadow(0 0 20px rgba(220,38,38,1))}
+.yt-title{font-family:'Teko',sans-serif;font-size:2.5rem;color:#fff;letter-spacing:.2em;text-transform:uppercase;margin-bottom:1rem; text-shadow: 0 0 10px rgba(220,38,38,0.5);}
+.yt-desc{color:#d1d5db;font-family:'Share Tech Mono',monospace;font-size:.82rem;line-height:1.7;margin-bottom:2rem;max-width:480px;margin-left:auto;margin-right:auto}
+
+/* Roster section */
+.roster-section{padding:6rem 1.5rem;background:#050508;border-top:1px solid rgba(255,255,255,0.05);position:relative}
+.roster-grid{display:grid;gap:2rem;max-width:1200px;margin:0 auto;position:relative;z-index:10}
+@media(min-width:640px){.roster-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:1024px){.roster-grid{grid-template-columns:repeat(3,1fr)}}
+.roster-card{background:#0a0a0c;cursor:crosshair;overflow:hidden;transition:all .3s;}
+.roster-card:hover{transform:translateY(-5px); box-shadow: 0 10px 30px rgba(234,179,8,0.15);}
+.roster-img-wrap{position:relative;overflow:hidden;border-bottom:1px solid #1f2937}
+.roster-img-wrap img{width:100%;height:288px;object-fit:cover;transition:transform .7s,filter .3s;filter:grayscale(60%)}
+.roster-card:hover .roster-img-wrap img{transform:scale(1.1);filter:grayscale(0)}
+.roster-overlay{position:absolute;inset:0;background:rgba(234,179,8,0);transition:background .3s; box-shadow: inset 0 0 0px #eab308;}
+.roster-card:hover .roster-overlay{background:rgba(234,179,8,.1); box-shadow: inset 0 0 20px rgba(234,179,8,0.5);}
+.roster-badge{position:absolute;top:.5rem;left:.5rem;background:rgba(0,0,0,.9);color:#eab308;font-family:'Share Tech Mono',monospace;font-size:.6rem;padding:.2rem .6rem;border:1px solid rgba(234,179,8,.5);text-transform:uppercase;letter-spacing:.1em; box-shadow: 0 0 10px rgba(0,0,0,0.8);}
+.roster-body{padding:1.25rem}
+.roster-meta{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
+.roster-dot{width:8px;height:8px;background:#eab308;border-radius:50%; box-shadow: 0 0 8px #eab308;}
+.roster-label{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#eab308;text-transform:uppercase;letter-spacing:.15em}
+.roster-desc{font-size:.8rem;color:#9ca3af;font-family:'Share Tech Mono',monospace;line-height:1.6;border-left:2px solid #374151;padding-left:.75rem}
+.roster-more{margin-top:4rem;text-align:center;position:relative;z-index:10}
+.btn-outline{
+  display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 2rem;
+  border:1px solid #4b5563;color:#d1d5db;font-family:'Share Tech Mono',monospace;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
+  text-decoration:none;background:#0a0a0c;transition:all .2s;font-size:.8rem; cursor: crosshair;
+}
+.btn-outline:hover{border-color:#eab308;color:#eab308; box-shadow: 0 0 15px rgba(234,179,8,0.3);}
+
+/* Footer */
+footer{background:#000;border-top:2px solid #eab308;padding:4rem 1.5rem 2rem;position:relative;overflow:hidden; box-shadow: 0 -10px 30px rgba(234,179,8,0.05);}
+.footer-tape{position:absolute;top:0;left:0;width:100%;height:4px}
+.footer-inner{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:2rem}
+@media(min-width:768px){.footer-inner{flex-direction:row;justify-content:space-between}}
+.footer-logo{font-family:'Teko',sans-serif;font-size:1.8rem;font-weight:700;letter-spacing:.2em;color:rgba(255,255,255,.6)}
+.footer-socials{display:flex;gap:1.5rem}
+.footer-socials a{color:#4b5563;transition:all .2s;text-decoration:none; cursor: crosshair;}
+.footer-socials a.yt:hover{color:#ef4444; filter: drop-shadow(0 0 10px #ef4444); transform: scale(1.1);}
+.footer-socials a.ig:hover{color:#ec4899; filter: drop-shadow(0 0 10px #ec4899); transform: scale(1.1);}
+.footer-status{display:flex;gap:1.5rem;font-family:'Share Tech Mono',monospace;font-size:.8rem;color:#6b7280;text-transform:uppercase;letter-spacing:.15em}
+.footer-copy{text-align:center;margin-top:3rem;font-family:'Share Tech Mono',monospace;font-size:.7rem;color:#4b5563;letter-spacing:.1em; line-height: 1.6;}
+.disclaimer { max-width: 600px; margin: 1rem auto 0; font-size: 0.65rem; color: #374151; }
+
+/* Dashboard Styles */
+#dashboard{background:#050508;min-height:100vh; cursor: crosshair;}
+.dash-header{ background:#000;border-bottom:1px solid #1f2937;padding:.75rem 1rem; position:sticky;top:0;z-index:50;box-shadow:0 5px 20px rgba(0,0,0,.8); }
+.dash-header-inner{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:.75rem}
+@media(min-width:768px){.dash-header-inner{flex-direction:row;align-items:center;justify-content:space-between}}
+.dash-brand{display:flex;align-items:center;gap:.75rem}
+.dash-avatar{width:40px;height:40px;background:#f97316;border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;color:#fff;box-shadow:0 0 15px rgba(249,115,22,.6);flex-shrink:0; text-shadow: 0 0 5px rgba(0,0,0,0.5);}
+.dash-brand-name{font-weight:700;color:#fff;letter-spacing:.05em}
+.dash-brand-sub{font-size:.7rem;color:#6b7280; font-family: 'Share Tech Mono', monospace; text-transform: uppercase;}
+.dash-right{display:flex;align-items:center;gap:.75rem;width:100%}
+@media(min-width:768px){.dash-right{width:auto}}
+.bio-box{flex:1;display:flex;align-items:center;background:#0a0a0c;border:1px solid #374151;border-radius:4px;padding:.25rem .25rem .25rem .75rem;min-width:0}
+@media(min-width:768px){.bio-box{min-width:280px}}
+.bio-url{font-size:.72rem;color:#9ca3af;font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;margin-right:.5rem}
+.copy-btn-small{ padding:.35rem .75rem;border-radius:4px;border:none;cursor:crosshair;font-weight:700;font-size:.72rem; transition:all .2s;white-space:nowrap;font-family:'Barlow',sans-serif; }
+.copy-btn-small.default{background:#1f2937;color:#e5e5e5}
+.copy-btn-small.default:hover{background:#374151; box-shadow: 0 0 10px rgba(255,255,255,0.1);}
+.copy-btn-small.copied{background:#16a34a;color:#fff; box-shadow: 0 0 15px rgba(22,163,74,0.5);}
+.btn-view-site{ display:flex;align-items:center;gap:.4rem;padding:.5rem 1rem; background:linear-gradient(135deg,#f97316,#dc2626);color:#fff;border:none;cursor:crosshair; font-weight:700;font-size:.8rem;border-radius:4px;white-space:nowrap;font-family:'Barlow',sans-serif; transition:all .2s;box-shadow:0 4px 15px rgba(249,115,22,.4); }
+.btn-view-site:hover{transform: translateY(-2px); box-shadow:0 6px 20px rgba(249,115,22,.6);}
+.dash-body{padding:1.5rem 1rem}
+.dash-inner{max-width:1280px;margin:0 auto}
+.dash-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;overflow-x:auto;padding-bottom:.25rem}
+.dash-tab{ display:flex;align-items:center;gap:.4rem;padding:.6rem 1.25rem;border-radius:4px;border:none;cursor:crosshair; font-weight:700;font-size:.85rem;font-family:'Barlow',sans-serif;transition:all .2s;white-space:nowrap; }
+.dash-tab.default{background:#0a0a0c;color:#9ca3af;border:1px solid #1f2937}
+.dash-tab.default:hover{background:#1f2937;color:#e5e5e5}
+.dash-tab.active-orange{background:#f97316;color:#fff; box-shadow: 0 0 15px rgba(249,115,22,0.4);}
+.dash-tab.active-purple{background:#9333ea;color:#fff;box-shadow:0 0 20px rgba(147,51,234,.6)}
+.dash-tab.purple-ghost{background:#0a0a0c;color:#a78bfa;border:1px solid rgba(167,139,250,.3)}
+.dash-tab.purple-ghost:hover{background:#1f2937; box-shadow: 0 0 10px rgba(167,139,250,0.2);}
+.dash-panel{background:#0a0a0c;border:1px solid #1f2937;border-radius:8px;padding:1.5rem;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+.dash-panel-title{font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:.5rem;color:#fff;margin-bottom:1.25rem}
+.dash-panel-title svg{color:#f97316; filter: drop-shadow(0 0 5px #f97316);}
+.table-wrap{overflow-x:auto;border-radius:4px; border: 1px solid #1f2937;}
+table{width:100%;border-collapse:collapse}
+thead tr{background:#000}
+th{padding:.8rem 1rem;text-align:left;color:#9ca3af;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+th.orange{color:#fb923c}
+tbody tr{border-bottom:1px solid #1f2937;transition:background .15s}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+tbody tr.highlight-row{background:rgba(249,115,22,.08)}
+td{padding:.8rem 1rem;font-size:.85rem}
+td.bold-white{font-weight:700;color:#fff;display:flex;align-items:center;gap:.4rem}
+td.orange{color:#fb923c;font-weight:700}
+td.muted{color:#9ca3af;font-size:.8rem}
+.hide-sm{display:none}
+@media(min-width:768px){.hide-sm{display:table-cell}}
+.pro-tip{margin-top:1rem;padding:.85rem 1rem;background:#000;border:1px solid #1f2937;border-radius:4px;font-size:.82rem;color:#9ca3af;line-height:1.6}
+.pro-tip strong{color:#f97316}
+.content-grid{display:grid;gap:1.25rem}
+@media(min-width:768px){.content-grid{grid-template-columns:1fr 1fr}}
+.content-card{background:#0a0a0c;border:1px solid #1f2937;border-radius:8px;padding:1.25rem;transition:border-color .2s, box-shadow .2s;}
+.content-card:hover{border-color:rgba(249,115,22,.5); box-shadow: 0 0 20px rgba(249,115,22,0.1);}
+.content-card.full{grid-column:1/-1}
+.cc-title{font-size:1rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:.4rem;margin-bottom:.75rem}
+.cc-title svg{color:#f97316;width:16px;height:16px;flex-shrink:0}
+.cc-list{list-style:none}
+.cc-list li{display:flex;gap:.5rem;align-items:flex-start;margin-bottom:.5rem;font-size:.85rem;color:#d1d5db;line-height:1.6}
+.cc-list li .ck{color:#f97316;margin-top:2px;flex-shrink:0}
+.cc-list li strong{color:#fff}
+.bar-track{background:#000;border-radius:999px;height:8px;margin:.75rem 0 .25rem; border: 1px solid #1f2937;}
+.bar-fill{height:100%;width:45%;border-radius:999px;background:linear-gradient(90deg,#ea580c,#fb923c); box-shadow: 0 0 10px #f97316;}
+.bar-lbl{font-size:.7rem;color:#6b7280;text-align:right; font-family: 'Share Tech Mono', monospace;}
+.mini-grid{display:grid;gap:.75rem;margin-top:.75rem}
+@media(min-width:480px){.mini-grid{grid-template-columns:repeat(3,1fr)}}
+.mini-card{background:#000;border:1px solid #1f2937;border-radius:4px;padding:.85rem}
+.mini-card h4{font-weight:700;color:#fff;font-size:.82rem;margin-bottom:.35rem}
+.mini-card p{font-size:.75rem;color:#9ca3af;line-height:1.5}
+.htag-grid{display:grid;gap:1rem}
+@media(min-width:600px){.htag-grid{grid-template-columns:1fr 1fr}}
+.htag-card{background:#000;border:1px solid #1f2937;border-radius:8px;padding:1.1rem;transition:all .2s}
+.htag-card:hover{border-color:rgba(249,115,22,.6); box-shadow: 0 0 15px rgba(249,115,22,0.15);}
+.htag-card h3{font-weight:700;color:#fff;font-size:.9rem;margin-bottom:.5rem}
+.htag-mono{font-family:'Share Tech Mono',monospace;color:#fb923c;background:#050508;padding:.4rem .7rem;border-radius:4px;font-size:.8rem;margin-bottom:.5rem;word-break:break-word;line-height:1.5; border: 1px solid #1f2937;}
+.htag-card p{font-size:.8rem;color:#9ca3af;line-height:1.5}
+.cta-note{margin-top:1.5rem;padding:1rem 1.25rem;background:linear-gradient(135deg,#050508,#110a12);border:1px solid #1f2937;border-radius:8px}
+.cta-note h3{font-weight:700;font-size:.9rem;color:#fff;display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem}
+.cta-note p{font-size:.82rem;color:#9ca3af;line-height:1.6}
+.cta-note p em{color:#f97316;font-style:italic}
+.ai-panel{background:#0a0a0c;border:1px solid rgba(147,51,234,.4);border-radius:8px;padding:1.5rem 1.5rem 1.75rem;box-shadow:0 0 40px rgba(0,0,0,.8), inset 0 0 20px rgba(147,51,234,0.05);position:relative;overflow:hidden}
+.ai-glow{position:absolute;top:0;right:0;width:250px;height:250px;background:rgba(147,51,234,.15);border-radius:50%;filter:blur(50px);pointer-events:none}
+.ai-header{display:flex;align-items:center;gap:.85rem;margin-bottom:1.5rem}
+.ai-icon-wrap{padding:.75rem;background:#7c3aed;border-radius:4px;box-shadow:0 0 20px rgba(124,58,237,.6);flex-shrink:0;display:flex}
+.ai-title{font-size:1.35rem;font-weight:700;color:#fff; text-shadow: 0 0 10px rgba(147,51,234,0.5);}
+.ai-sub{color:#c4b5fd;font-size:.82rem;margin-top:2px; font-family: 'Share Tech Mono', monospace;}
+.ai-mode-btns{display:flex;gap:.3rem;margin-bottom:1.5rem;padding:.2rem;background:#000;border-radius:4px;border:1px solid #1f2937;width:fit-content}
+.ai-mode-btn{padding:.45rem 1rem;border-radius:4px;border:none;cursor:crosshair;font-weight:600;font-size:.82rem;transition:all .2s;font-family:'Barlow',sans-serif}
+.ai-mode-btn.active{background:#7c3aed;color:#fff; box-shadow: 0 0 10px rgba(124,58,237,0.5);}
+.ai-mode-btn:not(.active){background:transparent;color:#9ca3af}
+.ai-mode-btn:not(.active):hover{color:#fff; background: #1f2937;}
+.ai-box{background:#000;border:1px solid #1f2937;border-radius:4px;padding:1.25rem;margin-bottom:1rem}
+.ai-label{display:block;font-size:.8rem;color:#d1d5db;font-weight:500;margin-bottom:.5rem}
+textarea{width:100%;background:#0a0a0c;color:#fff;border:1px solid #374151;border-radius:4px;padding:.75rem;font-size:.85rem;resize:none;height:80px;outline:none;transition:all .2s;font-family:'Share Tech Mono',monospace; cursor: text;}
+textarea:focus{border-color:#7c3aed; box-shadow: 0 0 10px rgba(124,58,237,0.2);}
+textarea::placeholder{color:#4b5563}
+.btn-generate{ width:100%;display:flex;align-items:center;justify-content:center;gap:.5rem; background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;padding:.75rem;border:none;border-radius:4px; font-weight:700;font-size:.88rem;cursor:crosshair;transition:all .2s;margin-top:.75rem; box-shadow:0 4px 20px rgba(124,58,237,.4);font-family:'Barlow',sans-serif; text-transform: uppercase; letter-spacing: 0.05em; }
+.btn-generate:disabled{background:#1f2937;color:#6b7280;box-shadow:none;cursor:not-allowed}
+.btn-generate:not(:disabled):hover{transform: translateY(-2px); box-shadow:0 6px 25px rgba(124,58,237,.6);}
+.ai-result-wrap{margin-top:1.25rem}
+.ai-result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.ai-result-title{font-weight:700;color:#fff;display:flex;align-items:center;gap:.4rem;font-size:.9rem}
+.btn-copy{ display:flex;align-items:center;gap:.3rem;padding:.35rem .75rem;background:#000;border:1px solid #374151; border-radius:4px;cursor:crosshair;font-size:.78rem;font-weight:600;transition:all .2s; color:#d1d5db;font-family:'Barlow',sans-serif; }
+.btn-copy:hover{background:#1f2937; border-color: #4ade80; color: #4ade80;}
+.btn-copy.copied{color:#000;background:#4ade80;border-color:#4ade80; box-shadow: 0 0 10px rgba(74,222,128,0.5);}
+.ai-output{ background:#000;border:1px solid #1f2937;border-radius:4px;padding:1rem; font-size:.83rem;color:#e5e5e5;white-space:pre-wrap;line-height:1.7; max-height:400px;overflow-y:auto; font-family: 'Share Tech Mono', monospace; }
+.icon{display:inline-block;vertical-align:middle;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- Scanline Overlay for Monitor Effect -->
+<div class="scanlines"></div>
+
+<!-- ===================== -->
+<!-- WEBSITE MODE          -->
+<!-- ===================== -->
+<div id="website">
+
+  <!-- Admin Toggle -->
+  <button id="admin-btn" onclick="switchMode('dashboard')">
+    <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Admin HUD
+  </button>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="#" class="nav-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        LEGENDLIVE
+      </a>
+      <div class="nav-links">
+        <a href="#intel">Intel</a>
+        <a href="#settings">Settings</a>
+        <a href="#youtube">Loadout</a>
+        <a href="#instagram">Roster</a>
+      </div>
+      <div class="nav-socials">
+        <a href="https://www.youtube.com/@legendliveo_o" target="_blank" rel="noreferrer" class="social-icon yt" title="YouTube">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        </a>
+        <a href="https://www.instagram.com/legendliveo_o" target="_blank" rel="noreferrer" class="social-icon ig" title="Instagram">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+        </a>
+      </div>
+    </div>
+    <div class="hazard-sub hazard-tape"></div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-overlay"></div>
+    <div class="absolute inset-0 bg-tactical" style="position:absolute;inset:0;mix-blend-mode:overlay;opacity:.4;pointer-events:none;"></div>
+
+    <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1">
+      <div class="floating-icon" style="left:10%;animation-duration:14s;animation-delay:0s">🪖</div>
+      <div class="floating-icon" style="left:30%;animation-duration:18s;animation-delay:4s">🔫</div>
+      <div class="floating-icon" style="left:50%;animation-duration:16s;animation-delay:1s">🚙</div>
+      <div class="floating-icon" style="left:70%;animation-duration:20s;animation-delay:6s">📦</div>
+      <div class="floating-icon" style="left:85%;animation-duration:15s;animation-delay:3s">🍳</div>
+      <div class="floating-icon" style="left:20%;animation-duration:17s;animation-delay:8s">🎯</div>
+      <div class="floating-icon" style="left:60%;animation-duration:13s;animation-delay:7s">🪂</div>
+    </div>
+
+    <div class="hero-content">
+      <div class="hero-badge font-mono">[ STATUS: DROP ZONE CLEARED ]</div>
+      <h1 class="hero-title font-teko glitch" data-text="LEGENDLIVE">LEGENDLIVE</h1>
+      <h2 class="hero-sub font-teko">Conquer The <span class="accent">Battlegrounds</span></h2>
+      <p class="hero-desc font-mono">
+        UID: 5647110429 | SERVER: ASIA | STATUS: ELITE TIER.<br/>
+        Your premier destination for high-octane battle royale gameplay, strategic squad wipes, and elite tactical analysis.
+      </p>
+      <div class="hero-btns">
+        <a href="https://www.youtube.com/@legendliveo_o" target="_blank" rel="noreferrer" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          Deploy to YouTube
+        </a>
+        <a href="https://www.instagram.com/legendliveo_o?igsh=MmJ2bmU0b2xoNG13" target="_blank" rel="noreferrer" class="btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          Instagram Recon
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Player Intel -->
+  <section class="intel-section" id="intel">
+    <div style="position:absolute;inset:0;z-index:0;opacity:.15" class="bg-tactical"></div>
+    <div style="max-width:1200px;margin:0 auto;position:relative;z-index:10">
+      <div class="section-header">
+        <div class="section-line"></div>
+        <h2 class="section-title-lg font-teko">Player <span class="accent">Intel</span></h2>
+        <p class="section-sub font-mono">Classified Data File</p>
+      </div>
+      <div class="intel-grid">
+        <div class="border-tactical combat-profile-card">
+          <div class="access-badge font-mono">Level 3 Access</div>
+          <h3 class="profile-title font-teko">COMBAT PROFILE</h3>
+          <p class="profile-desc font-mono">Operating in the elite tiers of mobile battle royale. Known for relentless aggression, pinpoint accuracy, and turning 1v4 situations into highlight reels.</p>
+          <div class="stats-grid">
+            <div class="stat-box"><div class="stat-label font-mono">FAV WEAPON</div><div class="stat-value font-teko">AR + 6X SCOPE</div></div>
+            <div class="stat-box"><div class="stat-label font-mono">PLAYSTYLE</div><div class="stat-value font-teko">ASSAULTER</div></div>
+            <div class="stat-box"><div class="stat-label font-mono">MAIN MAP</div><div class="stat-value font-teko">CLASSIC 8X8</div></div>
+            <div class="stat-box"><div class="stat-label font-mono">ROLE</div><div class="stat-value font-teko" style="font-size:1.3rem">ENTRY FRAGGER</div></div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:center;align-items:center">
+          <div class="avatar-ring">
+            <div class="avatar-ring-border spin-slow"></div>
+            <svg style="position:absolute;color:rgba(255,255,255,0.1)" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span class="avatar-text font-teko" style="position:relative;z-index:10">L_O</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HUD & SENSITIVITY Section -->
+  <section class="intel-section" id="settings">
+    <div class="bg-tactical"></div>
+    <div style="max-width:1200px;margin:0 auto;position:relative;z-index:10">
+      <div class="section-header">
+        <div class="section-line"></div>
+        <h2 class="section-title-lg font-teko">Tactical <span class="accent">Settings</span></h2>
+        <p class="section-sub font-mono">Four-Finger Layout & Gyro Mastery</p>
+      </div>
+      
+      <!-- Top Row: HUD Layout Details -->
+      <div class="intel-grid" style="align-items: flex-start; margin-bottom: 3rem;">
+        <div class="border-tactical combat-profile-card">
+          <div class="access-badge font-mono">Schematic Viewer</div>
+          <h3 class="profile-title font-teko" style="font-size:2rem; margin-bottom: 1.5rem;">HUD SCHEMATIC</h3>
+          <div class="hud-image-wrapper">
+            <img src="22478_2.png" alt="Four-finger mobile HUD control layout">
+          </div>
+          <p class="profile-desc font-mono" style="margin-bottom:0; font-size: 0.75rem;">Full in-game HUD layout — every icon shown here represents a tactical position for maximum control and zero input delay.</p>
+        </div>
+
+        <div class="border-tactical combat-profile-card">
+          <h3 class="profile-title font-teko" style="font-size:2rem; margin-bottom: 1.5rem;">KEY CONTROLS</h3>
+          <div style="max-height: 440px; overflow-y: auto; padding-right: 0.5rem;">
+            <table class="hud-table">
+              <tbody>
+                <tr><td class="hud-control">Perspective <span>(mode selector)</span></td><td class="hud-zone"><span class="hud-zone-tag">TOP BAR</span></td></tr>
+                <tr><td class="hud-control">Layout Memory <span>(saved slot)</span></td><td class="hud-zone"><span class="hud-zone-tag">TOP BAR</span></td></tr>
+                <tr><td class="hud-control">Reset / Save</td><td class="hud-zone"><span class="hud-zone-tag">TOP BAR</span></td></tr>
+                <tr><td class="hud-control">FPP <span>(view toggle)</span></td><td class="hud-zone"><span class="hud-zone-tag">TOP RIGHT</span></td></tr>
+                <tr><td class="hud-control">ADS / Scope</td><td class="hud-zone"><span class="hud-zone-tag">TOP RIGHT</span></td></tr>
+                <tr><td class="hud-control">Follow / Cancel Skill</td><td class="hud-zone"><span class="hud-zone-tag">LEFT</span></td></tr>
+                <tr><td class="hud-control">Sprint / Drive / Get In</td><td class="hud-zone"><span class="hud-zone-tag">LEFT</span></td></tr>
+                <tr><td class="hud-control">Exit Vehicle</td><td class="hud-zone"><span class="hud-zone-tag">BOTTOM LEFT</span></td></tr>
+                <tr><td class="hud-control">Rescue / Carry / Interact</td><td class="hud-zone"><span class="hud-zone-tag">CENTER</span></td></tr>
+                <tr><td class="hud-control">Peek <span>(lean left/right)</span></td><td class="hud-zone"><span class="hud-zone-tag">RIGHT</span></td></tr>
+                <tr><td class="hud-control">Parachute / Drive</td><td class="hud-zone"><span class="hud-zone-tag">RIGHT</span></td></tr>
+                <tr><td class="hud-control">In-Match Comms</td><td class="hud-zone"><span class="hud-zone-tag">RIGHT</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sens Row 1: Camera & ADS -->
+      <div class="intel-grid" style="align-items: flex-start; margin-bottom: 3rem;">
+        
+        <div class="border-tactical combat-profile-card" style="padding: 2rem 2.5rem;">
+          <h3 class="profile-title font-teko" style="font-size:2rem; margin-bottom: 1.5rem; text-align:center;">CAMERA SENSITIVITY</h3>
+          <div class="sens-row">
+            <div class="sens-header"><span>TPP No Scope</span><span class="sens-val">80%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 26%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>FPP No Scope</span><span class="sens-val">115%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 38%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>Red Dot, Holo, Iron Sight</span><span class="sens-val">69%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 23%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>2x Scope</span><span class="sens-val">69%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 23%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>3x Scope, Win94</span><span class="sens-val">24%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 8%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>4x Scope, VSS</span><span class="sens-val">24%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 8%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>6x Scope</span><span class="sens-val">8%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 3%;"></div></div>
+          </div>
+          <div class="sens-row" style="margin-bottom: 1.5rem;">
+            <div class="sens-header"><span>8x Scope</span><span class="sens-val">9%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 3%;"></div></div>
+          </div>
+          
+          <div style="border-top: 1px solid #1f2937; padding-top: 1.25rem;">
+            <div class="access-badge font-mono" style="background:#1f2937; color:#d1d5db; border-color:#374151; box-shadow:none;">FREE LOOK</div>
+            <h4 class="font-teko" style="font-size:1.4rem; margin-bottom: 0.5rem; color:#9ca3af;">CAMERA (FREE LOOK)</h4>
+            <div class="sens-row" style="margin-bottom:0.5rem;">
+              <div class="sens-header"><span>TPP (Character, Vehicle)</span><span class="sens-val" style="color:#d1d5db; text-shadow:none;">120%</span></div>
+            </div>
+            <div class="sens-row" style="margin-bottom:0.5rem;">
+              <div class="sens-header"><span>Camera (Parachuting)</span><span class="sens-val" style="color:#d1d5db; text-shadow:none;">120%</span></div>
+            </div>
+            <div class="sens-row" style="margin-bottom:0;">
+              <div class="sens-header"><span>FPP (Character)</span><span class="sens-val" style="color:#d1d5db; text-shadow:none;">120%</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-tactical combat-profile-card" style="padding: 2rem 2.5rem;">
+          <h3 class="profile-title font-teko" style="font-size:2rem; margin-bottom: 1.5rem; text-align:center;">ADS SENSITIVITY</h3>
+          <div class="sens-row">
+            <div class="sens-header"><span>TPP No Scope</span><span class="sens-val">80%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 26%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>FPP No Scope</span><span class="sens-val">115%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 38%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>Red Dot, Holo, Iron Sight</span><span class="sens-val">1%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 1%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>2x Scope</span><span class="sens-val">113%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 37%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>3x Scope, Win94</span><span class="sens-val">1%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 1%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>4x Scope, VSS</span><span class="sens-val">1%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 1%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>6x Scope</span><span class="sens-val">8%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 3%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>8x Scope</span><span class="sens-val">8%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 3%;"></div></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sens Row 2: Gyro & ADS Gyro -->
+      <div class="intel-grid" style="align-items: flex-start;">
+        
+        <div class="border-tactical combat-profile-card" style="padding: 2rem 2.5rem;">
+          <div class="access-badge font-mono" style="background:#dc2626; color:#fff; border-color:#dc2626; box-shadow: 0 0 10px rgba(220,38,38,0.5);">ALWAYS ON</div>
+          <h3 class="profile-title font-teko" style="font-size:2rem; margin-bottom: 1.5rem; text-align:center;">GYROSCOPE SENSITIVITY</h3>
+          <div class="sens-row">
+            <div class="sens-header"><span>TPP No Scope</span><span class="sens-val">210%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 52%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>FPP No Scope</span><span class="sens-val">210%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 52%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>Red Dot, Holo, Iron Sight</span><span class="sens-val">185%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 46%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>2x Scope</span><span class="sens-val">120%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 30%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>3x Scope, Win94</span><span class="sens-val">169%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 42%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>4x Scope, VSS</span><span class="sens-val">120%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 30%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>6x Scope</span><span class="sens-val">100%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 25%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>8x Scope</span><span class="sens-val">100%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 25%;"></div></div>
+          </div>
+        </div>
+
+        <div class="border-tactical combat-profile-card" style="padding: 2rem 2.5rem;">
+          <div class="access-badge font-mono" style="background:#dc2626; color:#fff; border-color:#dc2626; box-shadow: 0 0 10px rgba(220,38,38,0.5);">ALWAYS ON</div>
+          <h3 class="profile-title font-teko" style="font-size:2rem; margin-bottom: 1.5rem; text-align:center;">ADS GYROSCOPE</h3>
+          <div class="sens-row">
+            <div class="sens-header"><span>TPP No Scope</span><span class="sens-val">210%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 52%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>FPP No Scope</span><span class="sens-val">210%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 52%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>Red Dot, Holo, Iron Sight</span><span class="sens-val">185%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 46%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>2x Scope</span><span class="sens-val">120%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 30%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>3x Scope, Win94</span><span class="sens-val">169%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 42%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>4x Scope, VSS</span><span class="sens-val">120%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 30%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>6x Scope</span><span class="sens-val">100%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 25%;"></div></div>
+          </div>
+          <div class="sens-row">
+            <div class="sens-header"><span>8x Scope</span><span class="sens-val">100%</span></div>
+            <div class="sens-bar-bg"><div class="sens-bar-fill" style="width: 25%;"></div></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- YouTube / Action Logs -->
+  <section class="yt-section" id="youtube">
+    <div class="yt-bg"></div>
+    <div class="yt-overlay"></div>
+    <div style="max-width:1200px;margin:0 auto;position:relative;z-index:10">
+      <div class="section-header">
+        <div class="section-line red"></div>
+        <h2 class="section-title-lg font-teko">Action <span class="accent-red">Logs</span></h2>
+        <p class="section-sub font-mono" style="color:#9ca3af">YouTube Transmissions</p>
+      </div>
+      <div class="yt-card">
+        <svg class="yt-icon" width="64" height="64" viewBox="0 0 24 24" fill="#dc2626"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        <h3 class="yt-title font-teko">Subscribe for Intel</h3>
+        <p class="yt-desc font-mono">Full match gameplays, sensitivity guides, handcam footage, and breakdown of elite rotations. Tap in to level up your gameplay.</p>
+        <a href="https://www.youtube.com/@legendliveo_o" target="_blank" rel="noreferrer" class="btn-yt font-mono">Initialize Connection</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Instagram Roster -->
+  <section class="roster-section" id="instagram">
+    <div style="position:absolute;inset:0;z-index:0;opacity:.1" class="bg-tactical"></div>
+    <div style="max-width:1200px;margin:0 auto;position:relative;z-index:10">
+      <div class="section-header">
+        <div class="section-line"></div>
+        <h2 class="section-title-lg font-teko">Character <span class="accent">Roster</span></h2>
+        <p class="section-sub font-mono">Instagram Exclusive Concepts</p>
+      </div>
+      <div class="roster-grid">
+        <div class="roster-card border-tactical">
+          <div class="roster-img-wrap" style="background:linear-gradient(135deg,#1a1a2e,#16213e);height:288px;display:flex;align-items:center;justify-content:center">
+            <div style="text-align:center;padding:2rem">
+              <div style="font-size:4rem;margin-bottom:1rem; text-shadow: 0 0 20px #eab308;">🎮</div>
+              <div class="font-teko" style="font-size:1.8rem;color:#eab308;letter-spacing:.2em">ANIME GAMER</div>
+              <div class="font-mono" style="font-size:.7rem;color:#6b7280;margin-top:.5rem">CONCEPT 001</div>
+            </div>
+          </div>
+          <div class="roster-overlay"></div>
+          <div class="roster-badge font-mono">ID: 001</div>
+          <div class="roster-body">
+            <div class="roster-meta"><div class="roster-dot pulse"></div><span class="roster-label font-mono">Metadata Fragment</span></div>
+            <p class="roster-desc font-mono">3D render of an anime-style female gamer dynamically bursting through a torn 3D profile card with flying paper debris and dust effects.</p>
+          </div>
+        </div>
+        <div class="roster-card border-tactical">
+          <div class="roster-img-wrap" style="background:linear-gradient(135deg,#0d1117,#1c2128);height:288px;display:flex;align-items:center;justify-content:center">
+            <div style="text-align:center;padding:2rem">
+              <div style="font-size:4rem;margin-bottom:1rem; text-shadow: 0 0 20px #60a5fa;">❄️</div>
+              <div class="font-teko" style="font-size:1.8rem;color:#60a5fa;letter-spacing:.2em">ICE QUEEN</div>
+              <div class="font-mono" style="font-size:.7rem;color:#6b7280;margin-top:.5rem">CONCEPT 002</div>
+            </div>
+          </div>
+          <div class="roster-overlay"></div>
+          <div class="roster-badge font-mono">ID: 002</div>
+          <div class="roster-body">
+            <div class="roster-meta"><div class="roster-dot pulse"></div><span class="roster-label font-mono">Metadata Fragment</span></div>
+            <p class="roster-desc font-mono">3D hyper-realistic render of a stylish female gamer in a blue and white winter outfit with sunglasses, breaking through a giant digital profile page.</p>
+          </div>
+        </div>
+        <div class="roster-card border-tactical">
+          <div class="roster-img-wrap" style="background:linear-gradient(135deg,#1a0a0a,#2d0000);height:288px;display:flex;align-items:center;justify-content:center">
+            <div style="text-align:center;padding:2rem">
+              <div style="font-size:4rem;margin-bottom:1rem; text-shadow: 0 0 20px #ef4444;">🔴</div>
+              <div class="font-teko" style="font-size:1.8rem;color:#ef4444;letter-spacing:.2em">RED JACKET</div>
+              <div class="font-mono" style="font-size:.7rem;color:#6b7280;margin-top:.5rem">CONCEPT 003</div>
+            </div>
+          </div>
+          <div class="roster-overlay"></div>
+          <div class="roster-badge font-mono">ID: 003</div>
+          <div class="roster-body">
+            <div class="roster-meta"><div class="roster-dot pulse"></div><span class="roster-label font-mono">Metadata Fragment</span></div>
+            <p class="roster-desc font-mono">Cinematic 3D render of a cool male gamer in a long red leather jacket running forward and breaking through a torn tactical player stats card.</p>
+          </div>
+        </div>
+        <div class="roster-card border-tactical">
+          <div class="roster-img-wrap" style="background:linear-gradient(135deg,#0a0a1a,#1a0a2e);height:288px;display:flex;align-items:center;justify-content:center">
+            <div style="text-align:center;padding:2rem">
+              <div style="font-size:4rem;margin-bottom:1rem; text-shadow: 0 0 20px #a78bfa;">⚡</div>
+              <div class="font-teko" style="font-size:1.8rem;color:#a78bfa;letter-spacing:.2em">CYBERPUNK</div>
+              <div class="font-mono" style="font-size:.7rem;color:#6b7280;margin-top:.5rem">CONCEPT 004</div>
+            </div>
+          </div>
+          <div class="roster-overlay"></div>
+          <div class="roster-badge font-mono">ID: 004</div>
+          <div class="roster-body">
+            <div class="roster-meta"><div class="roster-dot pulse"></div><span class="roster-label font-mono">Metadata Fragment</span></div>
+            <p class="roster-desc font-mono">Action-packed 3D render of a cyberpunk character in a blue mechanical suit bursting out of a shattered glass digital dashboard.</p>
+          </div>
+        </div>
+        <div class="roster-card border-tactical">
+          <div class="roster-img-wrap" style="background:linear-gradient(135deg,#050510,#0a0a1a);height:288px;display:flex;align-items:center;justify-content:center">
+            <div style="text-align:center;padding:2rem">
+              <div style="font-size:4rem;margin-bottom:1rem; text-shadow: 0 0 20px #f97316;">😈</div>
+              <div class="font-teko" style="font-size:1.8rem;color:#f97316;letter-spacing:.2em">DARK FANTASY</div>
+              <div class="font-mono" style="font-size:.7rem;color:#6b7280;margin-top:.5rem">CONCEPT 005</div>
+            </div>
+          </div>
+          <div class="roster-overlay"></div>
+          <div class="roster-badge font-mono">ID: 005</div>
+          <div class="roster-body">
+            <div class="roster-meta"><div class="roster-dot pulse"></div><span class="roster-label font-mono">Metadata Fragment</span></div>
+            <p class="roster-desc font-mono">Dark fantasy 3D render of an edgy gamer in a red coat standing next to a blue sports car, with a massive demonic entity glowing against the screen.</p>
+          </div>
+        </div>
+      </div>
+      <div class="roster-more">
+        <a href="https://www.instagram.com/legendliveo_o?igsh=MmJ2bmU0b2xoNG13" target="_blank" rel="noreferrer" class="btn-outline font-mono">View Full Archive on IG</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-tape hazard-tape"></div>
+    <div class="footer-inner">
+      <div class="footer-logo font-teko">LEGENDLIVE</div>
+      <div class="footer-socials">
+        <a href="https://www.youtube.com/@legendliveo_o" target="_blank" rel="noreferrer" class="yt">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        </a>
+        <a href="https://www.instagram.com/legendliveo_o" target="_blank" rel="noreferrer" class="ig">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+        </a>
+      </div>
+      <div class="footer-status font-mono">
+        <span>Status: Active</span>
+        <span style="color:#eab308">•</span>
+        <span>Region: IND</span>
+      </div>
+    </div>
+    <div class="footer-copy font-mono">
+      © <span id="yr"></span> LEGENDLIVE. ALL RIGHTS RESERVED. SECURE TRANSMISSION.<br/>
+      <div class="disclaimer">
+        DISCLAIMER: This is a fan-created portfolio and content hub. LEGENDLIVE is an independent content creator. This website is not affiliated with, maintained, authorized, endorsed, or sponsored by Krafton, Tencent Games, or any of their affiliates. All game names, game mechanics, and brands belong to their respective rightful owners. 
+      </div>
+    </div>
+  </footer>
+</div>
+
+
+<!-- ===================== -->
+<!-- DASHBOARD MODE        -->
+<!-- ===================== -->
+<div id="dashboard">
+  <div class="dash-header">
+    <div class="dash-header-inner">
+      <div class="dash-brand">
+        <div class="dash-avatar">LO</div>
+        <div>
+          <div class="dash-brand-name">Legend Dashboard</div>
+          <div class="dash-brand-sub">Creator Admin Panel</div>
+        </div>
+      </div>
+      <div class="dash-right">
+        <div class="bio-box">
+          <span class="bio-url font-mono" id="bio-url">https://legendliveoo.github.io/legendlive/</span>
+          <button class="copy-btn-small default" id="copy-bio-btn" onclick="copyBioLink()">COPY BIO LINK</button>
+        </div>
+        <button class="btn-view-site" onclick="switchMode('website')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          View Website
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-body">
+    <div class="dash-inner">
+      <!-- Tabs -->
+      <div class="dash-tabs">
+        <button class="dash-tab active-orange" id="tab-schedule" onclick="dashTab('schedule')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Schedule
+        </button>
+        <button class="dash-tab default" id="tab-content" onclick="dashTab('content')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          Content Rules
+        </button>
+        <button class="dash-tab default" id="tab-hashtags" onclick="dashTab('hashtags')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+          Hashtags
+        </button>
+        <button class="dash-tab purple-ghost" id="tab-ai" onclick="dashTab('ai')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+          AI Assistant
+        </button>
+      </div>
+
+      <!-- Panels -->
+      <div id="dpanel-schedule" class="dash-panel fade-up">
+        <div class="dash-panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Optimal Posting Windows (IST)
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Day</th><th>Morning/Midday Slot</th><th class="orange">Prime Evening Slot</th><th class="hide-sm">Algorithmic Rationale</th></tr></thead>
+            <tbody>
+              <tr><td class="bold-white">Monday</td><td>10:30 AM – 11:30 AM</td><td class="orange">7:30 PM – 8:30 PM</td><td class="muted hide-sm">Captures commute times in the morning and intercepts the post-work relaxation period.</td></tr>
+              <tr><td class="bold-white">Tuesday</td><td>9:00 AM – 10:00 AM</td><td class="orange">6:00 PM – 8:00 PM</td><td class="muted hide-sm">Strong early-week momentum. Evening captures audiences seeking active entertainment.</td></tr>
+              <tr class="highlight-row">
+                <td class="bold-white"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>Wednesday</td>
+                <td>11:00 AM – 12:00 PM</td><td class="orange">8:00 PM – 9:00 PM</td><td class="muted hide-sm">Statistically the strongest day. The 8:00 PM slot is the apex for organic reach.</td>
+              </tr>
+              <tr><td class="bold-white">Thursday</td><td>10:30 AM – 11:30 AM</td><td class="orange">6:00 PM – 9:00 PM</td><td class="muted hide-sm">High anticipation for the weekend drives robust engagement.</td></tr>
+              <tr><td class="bold-white">Friday</td><td>11:00 AM – 2:00 PM</td><td class="orange">10:00 PM – 11:30 PM</td><td class="muted hide-sm">Late-night slot capitalizes on the start of weekend gaming marathons.</td></tr>
+              <tr><td class="bold-white">Saturday</td><td>10:00 AM – 12:00 PM</td><td class="orange">8:30 PM – 10:00 PM</td><td class="muted hide-sm">Night slot serves as content consumed between matches.</td></tr>
+              <tr><td class="bold-white">Sunday</td><td>1:00 PM – 2:00 PM</td><td class="orange">8:00 PM – 10:00 PM</td><td class="muted hide-sm">Midday and prime-time evening slots capture audiences preparing for the week.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pro-tip"><strong>Pro Tip:</strong> If restricted to one upload, the <strong>7:00 PM – 9:00 PM IST</strong> window is mathematically superior for gaming content.</div>
+      </div>
+
+      <div id="dpanel-content" class="hidden">
+        <div class="content-grid">
+          <div class="content-card">
+            <div class="cc-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              The 3-Second Hook
+            </div>
+            <ul class="cc-list">
+              <li><span class="ck">✓</span><span><strong>Visual Intrigue:</strong> Start mid-action. Never begin in the lobby or looting.</span></li>
+              <li><span class="ck">✓</span><span><strong>Textual Problem-Solving:</strong> Use bold, high-contrast on-screen text (e.g., "Struggling with AR recoil?").</span></li>
+              <li><span class="ck">✓</span><span><strong>Auditory Disruption:</strong> Sudden in-game sound effects paired instantly with voiceover.</span></li>
+            </ul>
+          </div>
+          <div class="content-card">
+            <div class="cc-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              Optimal Duration
+            </div>
+            <p class="cc-body">Target strictly between <strong>15 and 30 seconds</strong>. This provides enough time for a satisfying micro-narrative while maintaining algorithmically vital completion rates.</p>
+            <div class="bar-track"><div class="bar-fill"></div></div>
+            <div class="bar-lbl">0s — 15s (Optimal) — 30s — 60s</div>
+          </div>
+          <div class="content-card full">
+            <div class="cc-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              Advanced Mobile Post-Production
+            </div>
+            <div class="mini-grid">
+              <div class="mini-card"><h4>Vertical Reframing</h4><p>Use overlays/templates. Stack gameplay centrally, blur background to preserve minimap/killfeed context in 9:16.</p></div>
+              <div class="mini-card"><h4>Relentless Pacing</h4><p>Ripple editing. Cut out all looting and silences. Compress a 10-minute match into 20 seconds of continuous action.</p></div>
+              <div class="mini-card"><h4>Audio Architecture</h4><p>Never rely solely on raw game audio. Synchronize high-energy voiceovers with trending background tracks.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="dpanel-hashtags" class="hidden">
+        <div class="dash-panel">
+          <div class="dash-panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+            Tag Framework
+          </div>
+          <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1.25rem;line-height:1.6">Combine 2-3 macro tags with 2-3 niche tags. Limit to <strong>5-8 total tags</strong> per post.</p>
+          <div class="htag-grid">
+            <div class="htag-card"><h3>Macro / Trending</h3><div class="htag-mono">#reels, #explorepage, #gaming</div><p>Casts the widest net; joins global trends.</p></div>
+            <div class="htag-card"><h3>Niche / Specific</h3><div class="htag-mono">#battleroyale, #mobilegaming, #gamer</div><p>Targets users who actively consume mobile shooter content.</p></div>
+            <div class="htag-card"><h3>Micro / Community</h3><div class="htag-mono">#sensitivity, #1v4clutch</div><p>Targets highly specific search queries.</p></div>
+            <div class="htag-card"><h3>Creator Branding</h3><div class="htag-mono">#LEGENDLIVE, #LegendArmy</div><p>Establishes brand equity.</p></div>
+          </div>
+          <div class="cta-note">
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Captions &amp; CTA
+            </h3>
+            <p>Use binary questions to drive engagement: <em>"AR or Sniper in the final circle?"</em>. Reply to every single comment to boost relational density score.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="dpanel-ai" class="hidden">
+        <div class="ai-panel">
+          <div class="ai-glow"></div>
+          <div class="ai-header">
+            <div class="ai-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+            </div>
+            <div>
+              <div class="ai-title">AI Creator Studio</div>
+              <div class="ai-sub">Generate viral hooks, captions, and reel concepts.</div>
+            </div>
+          </div>
+          <div class="ai-mode-btns">
+            <button class="ai-mode-btn active" id="ai-btn-caption" onclick="setAiMode('caption')">📝 Caption Writer</button>
+            <button class="ai-mode-btn" id="ai-btn-ideas" onclick="setAiMode('ideas')">💡 Reel Ideas</button>
+          </div>
+          <div class="ai-box">
+            <label class="ai-label" id="ai-label">Describe your gameplay clip (e.g., "1v4 clutch in main city"):</label>
+            <textarea id="ai-input" placeholder="Long distance sniper shot..." oninput="checkAiBtn()"></textarea>
+            <button class="btn-generate" id="ai-gen-btn" onclick="runAI()" disabled>
+              <svg id="ai-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+              <span id="ai-btn-label">Generate with AI</span>
+            </button>
+          </div>
+          <div id="ai-result-wrap" class="hidden ai-result-wrap">
+            <div class="ai-result-header">
+              <div class="ai-result-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="ai-result-title-text">Ready to Post</span>
+              </div>
+              <button class="btn-copy" id="copy-ai-btn" onclick="copyAI()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy Text
+              </button>
+            </div>
+            <div class="ai-output" id="ai-output"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Year
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  // Mode switch
+  function switchMode(mode) {
+    document.getElementById('website').style.display = mode === 'website' ? 'block' : 'none';
+    document.getElementById('dashboard').style.display = mode === 'dashboard' ? 'block' : 'none';
+    window.scrollTo(0,0);
+  }
+
+  // Dashboard tabs
+  let currentDashTab = 'schedule';
+  const tabIds = ['schedule','content','hashtags','ai'];
+  function dashTab(tab) {
+    tabIds.forEach(t => {
+      const btn = document.getElementById('tab-'+t);
+      const panel = document.getElementById('dpanel-'+t);
+      if (t === tab) {
+        panel.classList.remove('hidden');
+        panel.classList.add('fade-up');
+        if (t === 'ai') {
+          btn.className = 'dash-tab active-purple';
+        } else {
+          btn.className = 'dash-tab active-orange';
+        }
+      } else {
+        panel.classList.add('hidden');
+        btn.className = t === 'ai' ? 'dash-tab purple-ghost' : 'dash-tab default';
+      }
+    });
+    currentDashTab = tab;
+  }
+
+  // Copy bio link
+  function copyBioLink() {
+    const url = 'https://legendliveoo.github.io/legendlive/';
+    copyText(url);
+    const btn = document.getElementById('copy-bio-btn');
+    btn.textContent = 'COPIED!';
+    btn.className = 'copy-btn-small copied';
+    setTimeout(() => { btn.textContent = 'COPY BIO LINK'; btn.className = 'copy-btn-small default'; }, 2000);
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const t = document.createElement('textarea');
+      t.value = text; t.style.position = 'absolute'; t.style.left = '-9999px';
+      document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+    }
+  }
+
+  // AI Demo logic
+  let currentAiMode = 'caption';
+  function setAiMode(mode) {
+    currentAiMode = mode;
+    document.getElementById('ai-btn-caption').className = 'ai-mode-btn' + (mode==='caption' ? ' active' : '');
+    document.getElementById('ai-btn-ideas').className = 'ai-mode-btn' + (mode==='ideas' ? ' active' : '');
+    document.getElementById('ai-label').textContent = mode === 'caption'
+      ? 'Describe your gameplay clip (e.g., "1v4 clutch in main city"):'
+      : 'What kind of content do you want to make? (e.g., "Funny squad moments")';
+    document.getElementById('ai-input').placeholder = mode === 'caption'
+      ? 'Long distance sniper shot...'
+      : 'Give me 3 ideas for tips and tricks...';
+    document.getElementById('ai-result-wrap').classList.add('hidden');
+    checkAiBtn();
+  }
+  function checkAiBtn() {
+    const val = document.getElementById('ai-input').value.trim();
+    const btn = document.getElementById('ai-gen-btn');
+    btn.disabled = (currentAiMode === 'caption' && !val);
+  }
+
+  function runAI() {
+    const input = document.getElementById('ai-input').value.trim();
+    const btn = document.getElementById('ai-gen-btn');
+    const label = document.getElementById('ai-btn-label');
+    const icon = document.getElementById('ai-icon');
+    const resultWrap = document.getElementById('ai-result-wrap');
+    const output = document.getElementById('ai-output');
+
+    btn.disabled = true;
+    label.textContent = 'Generating...';
+    icon.style.animation = 'spin .8s linear infinite';
+    resultWrap.classList.add('hidden');
+
+    setTimeout(() => {
+      let demoResponse = "";
+      if (currentAiMode === 'caption') {
+        demoResponse = `Wait for the end... 🔥 They thought they had me surrounded but they forgot who they're pushing. 😤 1v4 clutch secured. 🎯\n\nDrop a comment: Which gun is your go-to for squad wipes? 👇\n\n#LEGENDLIVE #gaming #battleroyale #1v4clutch #mobilegaming #gamer`;
+      } else {
+        demoResponse = `🔥 CONCEPT 1: The Bait & Switch\nHook: "Never push this building without doing THIS first..."\nFormat: Fast-paced cut showing a failed push, followed by your successful tactical rotation. Heavy bass drop on the squad wipe.\n\n🔥 CONCEPT 2: Sensitivity Check\nHook: "My secret zero-recoil settings 🤫"\nFormat: 5 seconds of absolute laser-beam gameplay, transitioning quickly into a flashing screenshot of your layout numbers.\n\n🔥 CONCEPT 3: The Sniper Duel\nHook: "Wait for the headshot sound 🎧"\nFormat: Minimal background music. Just the intense silence of aiming, followed by a crisp sniper sound effect and immediate slow-motion on the knock.`;
+      }
+      
+      output.textContent = demoResponse;
+      document.getElementById('ai-result-title-text').textContent = currentAiMode === 'caption' ? 'Ready to Post' : 'Concept Blueprint';
+      resultWrap.classList.remove('hidden');
+
+      btn.disabled = (currentAiMode === 'caption' && !document.getElementById('ai-input').value.trim());
+      label.textContent = 'Generate with AI';
+      icon.style.animation = '';
+    }, 1500);
+  }
+
+  function copyAI() {
+    const text = document.getElementById('ai-output').textContent;
+    copyText(text);
+    const btn = document.getElementById('copy-ai-btn');
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy Text'; btn.classList.remove('copied'); }, 2000);
+  }
+</script>
+</body>
+</html>
